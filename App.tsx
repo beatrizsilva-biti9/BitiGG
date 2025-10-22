@@ -1,9 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { QUIZ_QUESTIONS } from './constants';
 import QuestionCard from './components/QuestionCard';
 import ResultsScreen from './components/ResultsScreen';
 import ProgressBar from './components/ProgressBar';
 import { playCorrectSound, playIncorrectSound } from './utils/sound';
+
+// Algoritmo Fisher-Yates para embaralhar de forma imparcial
+const shuffleArray = <T,>(array: T[]): T[] => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+};
 
 const App: React.FC = () => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -12,13 +22,21 @@ const App: React.FC = () => {
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [isAnswered, setIsAnswered] = useState(false);
 
+    const currentQuestion = useMemo(() => {
+        const questionData = QUIZ_QUESTIONS[currentQuestionIndex];
+        return {
+            ...questionData,
+            options: shuffleArray(questionData.options),
+        };
+    }, [currentQuestionIndex]);
+
     const handleAnswer = useCallback((answer: string) => {
         if (isAnswered) return;
 
         setSelectedAnswer(answer);
         setIsAnswered(true);
 
-        if (answer === QUIZ_QUESTIONS[currentQuestionIndex].correctAnswer) {
+        if (answer === currentQuestion.correctAnswer) {
             playCorrectSound();
             setScore(prev => prev + 1);
         } else {
@@ -35,7 +53,7 @@ const App: React.FC = () => {
                 setQuizFinished(true);
             }
         }, 1500); // Wait 1.5 seconds to show feedback
-    }, [currentQuestionIndex, isAnswered]);
+    }, [currentQuestionIndex, isAnswered, currentQuestion]);
 
     const handleRestart = () => {
         setCurrentQuestionIndex(0);
@@ -65,7 +83,7 @@ const App: React.FC = () => {
                                 total={QUIZ_QUESTIONS.length} 
                             />
                             <QuestionCard
-                                question={QUIZ_QUESTIONS[currentQuestionIndex]}
+                                question={currentQuestion}
                                 onAnswer={handleAnswer}
                                 isAnswered={isAnswered}
                                 selectedAnswer={selectedAnswer}
